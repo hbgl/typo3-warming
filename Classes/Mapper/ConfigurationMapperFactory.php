@@ -50,8 +50,9 @@ final readonly class ConfigurationMapperFactory implements TypedExtConf\Mapper\M
             ->allowPermissiveTypes()
             ->allowScalarValueCasting()
             ->allowUndefinedValues()
+            ->registerConstructor($this->constructCrawlingStrategy(...))
             ->registerConverter($this->mapOptions(...))
-            ->registerConverter($this->mapCrawlingStrategy(...))
+            ->registerConverter($this->mapCrawlingStrategyNull(...))
             ->registerConverter($this->mapIntegerList(...))
             ->registerConverter($this->mapStringList(...))
             ->mapper()
@@ -73,15 +74,27 @@ final readonly class ConfigurationMapperFactory implements TypedExtConf\Mapper\M
     }
 
     /**
-     * @throws CacheWarmup\Exception\CrawlingStrategyDoesNotExist
+     * @throws \CuyZ\Valinor\Mapper\Tree\Message\Message
      */
-    private function mapCrawlingStrategy(string $strategy): ?CacheWarmup\Crawler\Strategy\CrawlingStrategy
+    private function mapCrawlingStrategyNull(string $strategy): ?CacheWarmup\Crawler\Strategy\CrawlingStrategy
     {
         if (!$this->crawlingStrategyFactory->has($strategy)) {
             return null;
         }
 
-        return $this->crawlingStrategyFactory->get($strategy);
+        throw \CuyZ\Valinor\Mapper\Tree\Message\MessageBuilder::newError('The specified crawling strategy exists; cannot map it to null.')->build();
+    }
+
+    /**
+     * @throws \CuyZ\Valinor\Mapper\Tree\Message\Message
+     */
+    private function constructCrawlingStrategy(string $strategy): CacheWarmup\Crawler\Strategy\CrawlingStrategy
+    {
+        try {
+            return $this->crawlingStrategyFactory->get($strategy);
+        } catch (\EliasHaeussler\CacheWarmup\Exception\CrawlingStrategyDoesNotExist $e) {
+            throw \CuyZ\Valinor\Mapper\Tree\Message\MessageBuilder::newError($e->getMessage())->build();
+        }
     }
 
     /**
